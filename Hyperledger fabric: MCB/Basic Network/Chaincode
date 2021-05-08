@@ -1,0 +1,269 @@
+package main
+
+import (
+	"encoding/json"
+    "fmt"
+  //  "strconv"
+  //  "strings"
+
+
+)
+type MineralChainCode struct{	
+}
+
+//Mineral数据结构体
+type MineralInfo struct{
+    MineralID string `json:MineralID`                             
+    MineralProInfo ProInfo `json:MineralProInfo`              
+    MineralIngInfo []IngInfo `json:MineralIngInfo`                
+    MineralLogInfo LogInfo `json:MineralLogInfo`                  
+}
+
+type MineralAllInfo struct{
+    MineralID string `json:MineralId`
+    MineralProInfo ProInfo `json:MineralProInfo`
+    MineralIngInfo []IngInfo `json:MineralIngInfo`
+    MineralLogInfo []LogInfo `json:MineralLogInfo`
+}
+
+//生产信息
+type ProInfo struct{
+    MineralName string `json:MineralName`                         //矿物名称
+    MineralSpec string `json:MineralSpec`                         //矿物规格
+    MineralMFGDate string `json:MineralMFGDate`                   //矿物出产日期
+    MineralEXPDate string `json:MineralEXPDate`                   //矿物保质期
+    MineralLOT string `json:MineralLOT`                           //矿物批次号
+    MineralQSID string `json:MineralQSID`                         //矿物生产许可证编号
+    MineralMFRSName string `json:MineralMFRSName`                 //矿物生产商名称
+    MineralProPrice string `json:MineralProPrice`                 //矿物生产价格
+    MineralProPlace string `json:MineralProPlace`               
+}
+type IngInfo struct{
+    IngID string `json:IngID`                               //配料ID
+    IngName string `json:IngName`                           //配料名称
+}
+
+type LogInfo struct{
+    LogDepartureTm string `json:LogDepartureTm`             //出发时间
+    LogArrivalTm string `json:LogArrivalTm`                 //到达时间
+    LogMission string `json:LogMission`                     //处理业务(储存or运输)
+    LogDeparturePl string `json:LogDeparturePl`             //出发地
+    LogDest string `json:LogDest`                           //目的地
+    LogToSeller string `json:LogToSeller`                   //销售商
+    LogStorageTm string `json:LogStorageTm`                 //存储时间
+    LogMOT string `json:LogMOT`                             //运送方式
+    LogCopName string `json:LogCopName`                     //物流公司名称
+    LogCost string `json:LogCost`                           //费用
+}
+
+func (a *MineralChainCode) Init(stub shim.ChaincodeStubInterface) pb.Response {
+    return shim.Success(nil)
+}
+
+func (a *MineralChainCode) Invoke(stub shim.ChaincodeStubInterface) pb.Response {
+    fn,args := stub.GetFunctionAndParameters()
+    if fn == "addProInfo"{
+        return a.addProInfo(stub,args)
+    } else if fn == "addIngInfo"{
+        return a.addIngInfo(stub,args)
+    } else if fn == "getMineralInfo"{
+        return a.getMineralInfo(stub,args)
+    }else if fn == "addLogInfo"{
+        return a.addLogInfo(stub,args)
+    }else if fn == "getProInfo"{
+        return a.getProInfo(stub,args)
+    }else if fn == "getLogInfo"{
+        return a.getLogInfo(stub,args)
+    }else if fn == "getIngInfo"{
+        return a.getIngInfo(stub,args)
+    }else if fn == "getLogInfo_l"{
+        return a.getLogInfo_l(stub,args)
+    }
+
+    return shim.Error("Recevied unkown function invocation")
+}
+
+
+
+
+
+func(a *MineralChainCode) getMineralInfo (stub shim.ChaincodeStubInterface,args []string) pb.Response{
+    if len(args) != 1{
+        return shim.Error("Incorrect number of arguments.")
+    }
+    MineralID := args[0]
+    resultsIterator,err := stub.GetHistoryForKey(MineralID)
+    if err != nil {
+        return shim.Error(err.Error())
+    }
+    defer resultsIterator.Close()
+    
+    var MineralAllinfo MineralAllInfo
+
+    for resultsIterator.HasNext(){
+        var MineralInfos MineralInfo
+        response,err :=resultsIterator.Next()
+        if err != nil {
+             return shim.Error(err.Error())
+        }
+        json.Unmarshal(response.Value,&MineralInfos)
+        if MineralInfos.MineralProInfo.MineralName !=""{
+            MineralAllinfo.MineralProInfo = MineralInfos.MineralProInfo
+        }else if MineralInfos.MineralIngInfo != nil{
+            MineralAllinfo.MineralIngInfo = MineralInfos.MineralIngInfo
+        }else if MineralInfos.MineralLogInfo.LogMission !=""{
+            MineralAllinfo.MineralLogInfo = append(MineralAllinfo.MineralLogInfo,MineralInfos.MineralLogInfo)
+        }
+
+    }
+    
+    jsonsAsBytes,err := json.Marshal(MineralAllinfo)
+    if err != nil{
+        return shim.Error(err.Error())
+    }
+
+    return shim.Success(jsonsAsBytes)
+}
+ 
+
+func(a *MineralChainCode) getProInfo (stub shim.ChaincodeStubInterface,args []string) pb.Response{
+    
+    if len(args) != 1{
+        return shim.Error("Incorrect number of arguments.")
+    }
+    MineralID := args[0]
+    resultsIterator,err := stub.GetHistoryForKey(MineralID)
+    if err != nil {
+        return shim.Error(err.Error())
+    }
+    defer resultsIterator.Close()
+    
+    var MineralProInfo ProInfo
+
+    for resultsIterator.HasNext(){
+        var MineralInfos MineralInfo
+        response,err :=resultsIterator.Next()
+        if err != nil {
+            return shim.Error(err.Error())
+        }
+        json.Unmarshal(response.Value,&MineralInfos)
+        if MineralInfos.MineralProInfo.MineralName != ""{
+            MineralProInfo = MineralInfos.MineralProInfo
+            continue
+        }
+    }
+    jsonsAsBytes,err := json.Marshal(MineralProInfo)   
+    if err != nil {
+        return shim.Error(err.Error())
+    }
+    return shim.Success(jsonsAsBytes)
+}
+
+func(a *MineralChainCode) getIngInfo (stub shim.ChaincodeStubInterface,args []string) pb.Response{
+ 
+    if len(args) !=1{
+        return shim.Error("Incorrect number of arguments.")
+    }
+    MineralID := args[0]
+    resultsIterator,err := stub.GetHistoryForKey(MineralID)
+
+    if err != nil{
+        return shim.Error(err.Error())
+    }
+    defer resultsIterator.Close()
+    
+    var MineralIngInfo []IngInfo
+    for resultsIterator.HasNext(){
+        var MineralInfos MineralInfo
+        response,err := resultsIterator.Next()
+        if err != nil{
+            return shim.Error(err.Error())
+        }
+        json.Unmarshal(response.Value,&MineralInfos)
+        if MineralInfos.MineralIngInfo != nil{
+            MineralIngInfo = MineralInfos.MineralIngInfo
+            continue
+        }
+    }
+    jsonsAsBytes,err := json.Marshal(MineralIngInfo)
+    if err != nil{
+        return shim.Error(err.Error())
+    }
+    return shim.Success(jsonsAsBytes)
+}
+
+func(a *MineralChainCode) getLogInfo (stub shim.ChaincodeStubInterface,args []string) pb.Response{
+
+    var LogInfos []LogInfo
+
+    if len(args) != 1{
+        return shim.Error("Incorrect number of arguments.")
+    }
+
+    MineralID := args[0]
+    resultsIterator,err :=stub.GetHistoryForKey(MineralID)
+    if err != nil{
+        return shim.Error(err.Error())
+    }
+    defer resultsIterator.Close()
+
+   
+    for resultsIterator.HasNext(){
+        var MineralInfos MineralInfo
+        response,err := resultsIterator.Next()
+        if err != nil {
+            return shim.Error(err.Error())
+        }
+        json.Unmarshal(response.Value,&MineralInfos)
+        if MineralInfos.MineralLogInfo.LogMission != ""{
+            LogInfos = append(LogInfos,MineralInfos.MineralLogInfo)
+        }
+    }
+    jsonsAsBytes,err := json.Marshal(LogInfos)
+    if err != nil{
+        return shim.Error(err.Error())
+    }
+    return shim.Success(jsonsAsBytes)
+}
+
+func(a *MineralChainCode) getLogInfo_l(stub shim.ChaincodeStubInterface,args []string) pb.Response{
+    var Loginfo LogInfo
+
+    if len(args) != 1{
+        return shim.Error("Incorrect number of arguments.")
+    }
+
+    MineralID := args[0]
+    resultsIterator,err :=stub.GetHistoryForKey(MineralID)
+    if err != nil{
+        return shim.Error(err.Error())
+    }
+    defer resultsIterator.Close()
+
+   
+    for resultsIterator.HasNext(){
+        var MineralInfos MineralInfo
+        response,err := resultsIterator.Next()
+        if err != nil {
+            return shim.Error(err.Error())
+        }
+        json.Unmarshal(response.Value,&MineralInfos)
+        if MineralInfos.MineralLogInfo.LogMission != ""{
+           Loginfo = MineralInfos.MineralLogInfo
+           continue 
+       }
+    }
+    jsonsAsBytes,err := json.Marshal(Loginfo)
+    if err != nil{
+        return shim.Error(err.Error ())
+    }
+    return shim.Success(jsonsAsBytes)
+}
+
+
+func main(){
+     err := shim.Start(new(MineralChainCode))
+     if err != nil {
+         fmt.Printf("Error starting Mineral chaincode: %s ",err)
+     }
+}
